@@ -13,6 +13,7 @@ python setup.py install
 ~~~~
 
 ## Example Usage
+* 주의: 입력되는 이미지 사이즈가 균일해야 함.
 ~~~~
 import glob
 import cv2
