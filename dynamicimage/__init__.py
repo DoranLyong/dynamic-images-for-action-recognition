@@ -12,12 +12,26 @@ def get_dynamic_image(frames, normalized=True):
     """ Takes a list of frames and returns either a raw or normalized dynamic image."""
     num_channels = frames[0].shape[2]
     channel_frames = _get_channel_frames(frames, num_channels)
+    channel_frames = np.sqrt(channel_frames)
     channel_dynamic_images = [_compute_dynamic_image(channel) for channel in channel_frames]
 
     dynamic_image = cv2.merge(tuple(channel_dynamic_images))
+    
+   
     if normalized:
-        dynamic_image = cv2.normalize(dynamic_image, None, 0, 255, norm_type=cv2.NORM_MINMAX)
-        dynamic_image = dynamic_image.astype('uint8')
+        num_frames, h, w, depth = frames.shape
+        coefficients = np.zeros(num_frames)
+        for n in range(num_frames):
+            cumulative_indices = sum(1/(np.array(range(n, num_frames)) + 1))
+            coefficients[n] = 2*(num_frames+1-(n+1))-(num_frames+1)*cumulative_indices
+        MAX = sum(coefficients[coefficients > 0])*np.sqrt(255)
+        MIN = sum(coefficients[coefficients < 0])*np.sqrt(255)
+        norm = (dynamic_image-MIN)/(MAX-MIN)*255
+        
+        #dynamic_image = cv2.normalize(dynamic_image, None, 0, 255, norm_type=cv2.NORM_MINMAX)
+        #dynamic_image = dynamic_image.astype('uint8')
+
+        dynamic_image = norm.astype('uint8')
 
     return dynamic_image
 
@@ -41,8 +55,8 @@ def _compute_dynamic_image(frames):
     # Compute the coefficients for the frames.
     coefficients = np.zeros(num_frames)
     for n in range(num_frames):
-        cumulative_indices = np.array(range(n, num_frames)) + 1
-        coefficients[n] = np.sum(((2*cumulative_indices) - num_frames) / cumulative_indices)
+        cumulative_indices = sum(1/(np.array(range(n, num_frames)) + 1))
+        coefficients[n] = 2*(num_frames+1-(n+1))-(num_frames+1)*cumulative_indices
 
     # Multiply by the frames by the coefficients and sum the result.
     x1 = np.expand_dims(frames, axis=0)
